@@ -87,7 +87,9 @@ public class OtlpAwsSpanExporter implements SpanExporter {
    */
   @Override
   public CompletableResultCode export(Collection<SpanData> spans) {
+
     this.spanData = spans;
+    System.out.println(this.toString());
     return this.parentExporter.export(spans);
   }
 
@@ -103,7 +105,7 @@ public class OtlpAwsSpanExporter implements SpanExporter {
 
   @Override
   public String toString() {
-    return this.parentExporter.toString();
+    return this.parentExporter.toString().replace("OtlpHttpSpanExporter", "OtlpAwsSpanExporter");
   }
 
   private final class SigV4AuthHeaderSupplier implements Supplier<Map<String, String>> {
