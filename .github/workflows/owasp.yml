@@ -39,11 +39,11 @@ jobs:
 #          java-version: 17
 #          distribution: 'temurin'
 #
-#      - name: Configure AWS credentials for dependency scan
-#        uses: aws-actions/configure-aws-credentials@v4
-#        with:
-#          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
-#          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      - name: Configure AWS credentials for dependency scan
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 #
 #      - name: Get NVD API key for dependency scan
 #        uses: aws-actions/aws-secretsmanager-get-secrets@v1

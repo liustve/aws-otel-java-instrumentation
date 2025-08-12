@@ -13,7 +13,6 @@ inputs:
     description: "List of severities that will cause a failure"
   logout:
     required: true
-    default: false
     description: "Whether to logout of public AWS ECR before scanning"
 
 runs:
