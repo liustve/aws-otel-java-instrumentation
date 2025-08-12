@@ -37,7 +37,7 @@ jobs:
       - name: Configure AWS credentials for dependency scan
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to Public ECR
