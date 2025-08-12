@@ -28,53 +28,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Java for dependency scan
-        uses: actions/setup-java@v4
+      - name: Login to Public ECR
+        uses: docker/login-action@v3
         with:
-          java-version: 17
-          distribution: 'temurin'
+          registry: public.ecr.aws
 
-      - name: Configure AWS credentials for dependency scan
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Get NVD API key for dependency scan
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
-        id: nvd_api_key
-        with:
-          secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
-          parse-json-secrets: true
-
-      - name: Publish patched dependencies to maven local
-        uses: ./.github/actions/patch-dependencies
-
-      - name: Build JAR
-        uses: gradle/gradle-build-action@v3
-        with:
-          arguments: assemble -PlocalDocker=true
-
-      # See http://jeremylong.github.io/DependencyCheck/dependency-check-cli/ for installation explanation
-      - name: Install and run dependency scan
-        id: dep_scan
-        if: always()
-        uses: ./.github/actions/execute_and_retry
-        with:
-          command: 'gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 259A55407DD6C00299E6607EFFDE55BE73A2D1ED &&
-                    VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt | head -n1 | cut -d" " -f1) &&
-                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip &&
-                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc &&
-                    gpg --verify dependency-check.zip.asc &&
-                    unzip dependency-check.zip &&
-                    ./dependency-check/bin/dependency-check.sh --failOnCVSS 0 --nvdApiKey ${{ env.NVD_API_KEY_NVD_API_KEY }} -s "otelagent/build/libs/aws-opentelemetry-agent-*-SNAPSHOT.jar"'
-          cleanup: 'rm -f ./dependency-check.zip && rm -f ./dependency-check.zip.asc && rm -rf ./dependency-check || true'
-          max_retry: 5
-          sleep_time: 60
-
-      - name: Print dependency scan results on failure
-        if: ${{ steps.dep_scan.outcome != 'success' }}
-        run: less dependency-check-report.html
+#      - name: Set up Java for dependency scan
+#        uses: actions/setup-java@v4
+#        with:
+#          java-version: 17
+#          distribution: 'temurin'
+#
+#      - name: Configure AWS credentials for dependency scan
+#        uses: aws-actions/configure-aws-credentials@v4
+#        with:
+#          role-to-assume: ${{ secrets.SECRET_MANAGER_ROLE_ARN }}
+#          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+#
+#      - name: Get NVD API key for dependency scan
+#        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+#        id: nvd_api_key
+#        with:
+#          secret-ids: ${{ secrets.NVD_API_KEY_SECRET_ARN }}
+#          parse-json-secrets: true
+#
+#      - name: Publish patched dependencies to maven local
+#        uses: ./.github/actions/patch-dependencies
+#
+#      - name: Build JAR
+#        uses: gradle/gradle-build-action@v3
+#        with:
+#          arguments: assemble -PlocalDocker=true
+#
+#      # See http://jeremylong.github.io/DependencyCheck/dependency-check-cli/ for installation explanation
+#      - name: Install and run dependency scan
+#        id: dep_scan
+#        if: always()
+#        uses: ./.github/actions/execute_and_retry
+#        with:
+#          command: 'gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 259A55407DD6C00299E6607EFFDE55BE73A2D1ED &&
+#                    VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt | head -n1 | cut -d" " -f1) &&
+#                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" --output dependency-check.zip &&
+#                    curl -Ls "https://github.com/dependency-check/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip.asc" --output dependency-check.zip.asc &&
+#                    gpg --verify dependency-check.zip.asc &&
+#                    unzip dependency-check.zip &&
+#                    ./dependency-check/bin/dependency-check.sh --failOnCVSS 0 --nvdApiKey ${{ env.NVD_API_KEY_NVD_API_KEY }} -s "otelagent/build/libs/aws-opentelemetry-agent-*-SNAPSHOT.jar"'
+#          cleanup: 'rm -f ./dependency-check.zip && rm -f ./dependency-check.zip.asc && rm -rf ./dependency-check || true'
+#          max_retry: 5
+#          sleep_time: 60
+#
+#      - name: Print dependency scan results on failure
+#        if: ${{ steps.dep_scan.outcome != 'success' }}
+#        run: less dependency-check-report.html
 
       - name: Perform high image scan on v1
         if: always()
@@ -83,6 +88,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v1
         if: always()
@@ -91,6 +97,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.33.0"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
       - name: Perform high image scan on v2
         if: always()
@@ -99,6 +106,7 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
           severity: 'CRITICAL,HIGH'
+          logout: 'false'
 
       - name: Perform low image scan on v2
         if: always()
@@ -107,46 +115,47 @@ jobs:
         with:
           image-ref: "public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v2.11.1"
           severity: 'MEDIUM,LOW,UNKNOWN'
+          logout: 'false'
 
-      - name: Configure AWS Credentials for emitting metrics
-        if: always()
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
-          aws-region:  ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Publish high scan status on v1
-        if: always()
-        run: |
-          value="${{ steps.high_scan_v1.outcome == 'success' && '1.0' || '0.0' }}"
-          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
-            --value $value
-
-      - name: Publish high scan status on v2
-        if: always()
-        run: |
-          value="${{ steps.high_scan_v2.outcome == 'success' && '1.0' || '0.0' }}"
-          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
-            --value $value
-
-      - name: Publish low scan status on v1
-        if: always()
-        run: |
-          value="${{ steps.low_scan_v1.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
-          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
-            --value $value
-      
-      - name: Publish low scan status on v2
-        if: always()
-        run: |
-          value="${{ steps.low_scan_v2.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
-          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
-            --metric-name Success \
-            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
-            --value $value
+#      - name: Configure AWS Credentials for emitting metrics
+#        if: always()
+#        uses: aws-actions/configure-aws-credentials@v4
+#        with:
+#          role-to-assume: ${{ secrets.METRICS_ROLE_ARN }}
+#          aws-region:  ${{ env.AWS_DEFAULT_REGION }}
+#
+#      - name: Publish high scan status on v1
+#        if: always()
+#        run: |
+#          value="${{ steps.high_scan_v1.outcome == 'success' && '1.0' || '0.0' }}"
+#          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+#            --metric-name Success \
+#            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
+#            --value $value
+#
+#      - name: Publish high scan status on v2
+#        if: always()
+#        run: |
+#          value="${{ steps.high_scan_v2.outcome == 'success' && '1.0' || '0.0' }}"
+#          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+#            --metric-name Success \
+#            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_high \
+#            --value $value
+#
+#      - name: Publish low scan status on v1
+#        if: always()
+#        run: |
+#          value="${{ steps.low_scan_v1.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+#          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+#            --metric-name Success \
+#            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
+#            --value $value
+#
+#      - name: Publish low scan status on v2
+#        if: always()
+#        run: |
+#          value="${{ steps.low_scan_v2.outcome == 'success' && steps.dep_scan.outcome == 'success' && '1.0' || '0.0'}}"
+#          aws cloudwatch put-metric-data --namespace 'ADOT/GitHubActions' \
+#            --metric-name Success \
+#            --dimensions repository=${{ github.repository }},branch=${{ github.ref_name }},workflow=daily_scan_low \
+#            --value $value
